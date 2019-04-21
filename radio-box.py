@@ -31,18 +31,22 @@ context = {
     'playerList':vlc.MediaListPlayer(),
     'stations': [
 	('Sing Sing','http://stream.sing-sing-bis.org:8000/singsingaac256'),
-        ('Grenouille','http://live.radiogrenouille.com/live.m3u'),
+        ('Radio Sympa','http://radio2.pro-fhi.net:9095/stream2'),        
         ('mega','http://live.francra.org:8000/Radio-Mega'),
         ('France Inter','http://direct.franceinter.fr/live/franceinter-midfi.mp3'),
-        ('FIP Nantes','http://direct.fipradio.fr/live/fipnantes-midfi.mp3'),
+        ('FIP','http://direct.fipradio.fr/live/fipnantes-midfi.mp3'),
         ('France culture','http://direct.franceculture.fr/live/franceculture-midfi.mp3'),
         ('St Fereol','http://live.francra.org:8000/RadioSaintFerreol.m3u'),
+	('Grenouille','http://live.radiogrenouille.com/live.m3u'),
     ],
     'current_station':0,
     'current_lcd_text':'',
 }
 
 def main():
+    #set volume to vlc
+    context['playerList'].get_media_player().audio_set_volume(60)
+
     #set function called when process stopped
     signal.signal(signal.SIGTERM, on_exit)
     
