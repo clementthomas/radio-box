@@ -31,7 +31,7 @@ context = {
     'playerList':vlc.MediaListPlayer(),
     'stations': [
 	('Sing Sing','http://stream.sing-sing-bis.org:8000/singsingaac256'),
-        ('Radio Sympa','http://radio2.pro-fhi.net:9095/stream2'),        
+        ('Radio Sympa','http://radio2.pro-fhi.net:9095/stream2'),
         ('mega','http://live.francra.org:8000/Radio-Mega'),
         ('France Inter','http://direct.franceinter.fr/live/franceinter-midfi.mp3'),
         ('FIP','http://direct.fipradio.fr/live/fipnantes-midfi.mp3'),
@@ -47,12 +47,15 @@ def main():
     #set volume to vlc
     context['playerList'].get_media_player().audio_set_volume(60)
 
+    #Set handler when station reached
+    context['playerList'].get_media_player().event_manager().event_attach(EventType.MediaPlayerPlaying, stationReached)
+
     #set function called when process stopped
     signal.signal(signal.SIGTERM, on_exit)
-    
-    #sequence to say hello 
+
+    #sequence to say hello
     launch()
-        
+
     #set button handlers
     buttonOnOff.when_held = shutdown #held after 5 seconds
     buttonOnOff.when_pressed = buttonOnOffPressed
@@ -61,7 +64,7 @@ def main():
     button3.when_pressed = buttonPressed
     button4.when_pressed = buttonPressed
     button5.when_pressed = buttonPressed
-    
+
     #wait
     pause()
 
@@ -72,34 +75,13 @@ def launch():
     display.off()
     led.on()
 
-def launch_funny():
-    """
-        funny and useless initializing sequence
-    """
-    display.on()
-    print_lcd("Chargement...")
-    
-    time.sleep(1)
-    
-    for i in range(3):
-        print_lcd(str(3-i)+'...')
-        led.on()
-        time.sleep(0.2)
-        led.off()
-        time.sleep(1)
-      
-    led.off()
-    display.on()
-    play(0)
-
-
 def shutdown():
     '''
-        shutdown raspbian        
+        shutdown raspbian
     '''
     on_exit()
     os.system('sudo halt')
-    
+
 def buttonOnOffPressed():
     '''
         depending on display state.
@@ -117,26 +99,14 @@ def buttonOnOffPressed():
         display.on()
         led.off()
         print_lcd("%s"%(random.choice(hellos),))
-        time.sleep(1)        
+        time.sleep(1)
         play()
 
 def buttonPressed():
     '''
         handler when station button pressed
     '''
-    
-    
-    #useless love code        
-    if button1.is_pressed and button5.is_pressed:
-        context['love'] = True
-        context.get('playerList').get_media_player().event_manager().event_detach(EventType.MediaPlayerPlaying)
-        print_lcd("Je t'aime")        
-        return
-    if context.get('love'):
-        context['love'] = False
-        context.get('playerList').get_media_player().event_manager().event_attach(EventType.MediaPlayerPlaying, stationReached, context['stations'][context['current_station']])
-    #end of love code
-    
+
     if button1.is_pressed:
         play(0)
     elif button2.is_pressed:
@@ -147,8 +117,8 @@ def buttonPressed():
         play(3)
     elif button5.is_pressed:
         play(4)
-    
-    
+
+
 def on_exit(sig=None, func=None):
     '''
         when process is stopped
@@ -169,10 +139,9 @@ def print_lcd(text):
     except OSError as e:
         try:
             setText(text) #try 2 time
-        except OSError as e:        
+        except OSError as e:
             print('OS Error : %s (text = %s)'%(str(e),text))
-    
-        
+
 def play(station_id=-1):
     '''
         play a station and display it on LCD followed by '...'
@@ -182,35 +151,35 @@ def play(station_id=-1):
         station_id = context.get('current_station')
     else:
         context['current_station'] = station_id
-        
+
     station = context.get('stations')[station_id]
-    
+
     if playerList.is_playing():
         playerList.stop()
-        
+
     print_lcd('%s...'%(station[0],))
-    
+
     if 'm3u' in station[1]:
         mediaList = vlc.MediaList([station[1]])
         print('MediaPlayerList')
     else:
         mediaList = vlc.MediaList()
-        mediaList.add_media(station[1])        
+        mediaList.add_media(station[1])
         print('MediaPlayer')
-        
-    playerList.get_media_player().event_manager().event_detach(EventType.MediaPlayerPlaying)
-    playerList.get_media_player().event_manager().event_attach(EventType.MediaPlayerPlaying, stationReached, station)
-        
-    playerList.set_media_list(mediaList)    
-    playerList.play()
-    
 
-def stationReached(event, station):
+    playerList.set_media_list(mediaList)
+    playerList.play()
+
+
+def stationReached(event):
     '''
         callback of MediaPlayerList when playing
     '''
+    station_id = context.get('current_station')
+    station = context.get('stations')[station_id]
+    print('Station Reached !')
     print_lcd('%s !'%(station[0],))
-   
+
 
 if __name__ == "__main__":
     main()
