@@ -1,6 +1,6 @@
 # -*- coding: utf-8 -*
 import vlc
-import time
+import time, sched
 from gpiozero import LED, Button, DigitalOutputDevice
 from signal import pause
 from datetime import datetime
@@ -9,6 +9,7 @@ import os,signal,sys
 from vlc import EventType
 import random
 import pdb
+import threading
 
 #inputs
 button1 = Button(26, bounce_time=0.2)
@@ -41,6 +42,7 @@ context = {
     ],
     'current_station':0,
     'current_lcd_text':'',
+    'state':'stopped' #stopped, loading, playing
 }
 
 def main():
@@ -95,6 +97,7 @@ def buttonOnOffPressed():
         print_lcd("")
         display.off()
         led.on()
+        context['state'] = 'stopped'
     else:
         display.on()
         led.off()
@@ -129,12 +132,15 @@ def on_exit(sig=None, func=None):
     context.get('playerList').stop()
     sys.exit(1)
 
-def print_lcd(text):
+def print_lcd(text, no_refresh=False):
     '''
         display on LCD
     '''
     try:
-        setText(text)
+        if no_refresh:
+            setText_norefresh(text)
+        else:
+            setText(text)
         context['current_lcd_text'] = text
     except OSError as e:
         try:
@@ -142,10 +148,13 @@ def print_lcd(text):
         except OSError as e:
             print('OS Error : %s (text = %s)'%(str(e),text))
 
+
 def play(station_id=-1):
     '''
         play a station and display it on LCD followed by '...'
     '''
+    context['state'] = 'loading'
+
     playerList = context.get('playerList')
     if station_id == -1:
         station_id = context.get('current_station')
@@ -175,11 +184,47 @@ def stationReached(event):
     '''
         callback of MediaPlayerList when playing
     '''
+    context['state'] = 'playing'
+    context['title_position'] = 0
     station_id = context.get('current_station')
     station = context.get('stations')[station_id]
     print('Station Reached !')
     print_lcd('%s !'%(station[0],))
+    displayTitle()
 
+def getTitle():
+    station_id = context.get('current_station')
+    station = context.get('stations')[station_id]
+    media = context.get('playerList').get_media_player().get_media()
+    title = media.get_meta(12)
+    if not title:
+        title = ''
+    return title
+
+def displayTitle():
+    title = getTitle()
+    print('len : %s'%(len(title),))
+    if len(title) <= 16:
+        print_lcd('\n%s'%(title.ljust(16),), no_refresh=True)
+    else:
+        #Update title every 0.5 second
+        threading.Timer(0.5, updateTitle, (0,)).start()
+
+
+def updateTitle(position=0, old_title=None):
+    if context['state'] == 'playing':
+        title = None
+        if position == -1:
+            print_lcd('\n                ', no_refresh=True)
+        elif position > -1:
+            title = getTitle()
+            title_mini = title[position:position+16]
+            #if title change or scroll at the end of title : reset position
+            if (old_title and old_title != title) or \
+                (position + 16 == len(title)):
+                position = -3
+            print_lcd('\n%s'%(title_mini,), no_refresh=True)
+        threading.Timer(0.5, updateTitle, (position+1,title)).start()
 
 if __name__ == "__main__":
     main()
